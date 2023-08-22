@@ -4,7 +4,6 @@ with lib;
 
 let
   cfg = config.services.thelounge;
-  dataDir = "/var/lib/thelounge";
   configJsData = "module.exports = " + builtins.toJSON (
     { inherit (cfg) public port; } // cfg.extraConfig
   );
@@ -34,8 +33,19 @@ in
         Make your The Lounge instance public.
         Setting this to `false` will require you to configure user
         accounts by using the ({command}`thelounge`) command or by adding
-        entries in {file}`${dataDir}/users`. You might need to restart
+        entries in {file}`$dataDir/users`. You might need to restart
         The Lounge after making changes to the state directory.
+      '';
+    };
+
+    dataDir = mkOption {
+      type = types.str;
+      default = "/var/lib/thelounge";
+      defaultText = literalExpression ''
+        "/var/lib/thelounge"
+      '';
+      description = lib.mdDoc ''
+        The directory containing the instances home
       '';
     };
 
@@ -92,11 +102,12 @@ in
     systemd.services.thelounge = {
       description = "The Lounge web IRC client";
       wantedBy = [ "multi-user.target" ];
-      preStart = "ln -sf ${pkgs.writeText "config.js" configJsData} ${dataDir}/config.js";
+      preStart = "ln -sf ${pkgs.writeText "config.js" configJsData} ${cfg.dataDir}/config.js";
       environment.THELOUNGE_PACKAGES = mkIf (cfg.plugins != [ ]) "${plugins}";
+      environment.THELOUNGE_HOME = cfg.dataDir;
       serviceConfig = {
         User = "thelounge";
-        StateDirectory = baseNameOf dataDir;
+        WorkingDirectory = cfg.dataDir;
         ExecStart = "${getExe cfg.package} start";
       };
     };
